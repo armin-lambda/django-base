@@ -18,4 +18,3 @@
 ![Project Image](images_for_github/people.png)
 ![Project Image](images_for_github/profile.png)
 ![Project Image](images_for_github/edit_account.png)
-![Project Image](images_for_github/following.png)
