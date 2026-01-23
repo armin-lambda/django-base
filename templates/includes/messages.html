@@ -1,0 +1,5 @@
+{% if messages %}
+    {% for msg in messages %}
+        <strong class="message alert alert-{{ msg.tags }} mt-4 mb-4">{{ msg }}</strong>
+    {% endfor %}
+{% endif %}
