@@ -3,8 +3,9 @@ from django.urls import reverse
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import FileExtensionValidator
+from phonenumber_field.modelfields import PhoneNumberField
 
-from utils.paths import get_user_profile_image_path
+from utils.paths import get_user_profile_image_upload_path
 from utils.validators import UsernameValidator, NameValidator
 
 
@@ -16,7 +17,6 @@ class CustomUser(AbstractUser):
         max_length=30,
         unique=True,
         validators=[UsernameValidator()],
-        help_text='Required. Unique. 30 characters or fewer. Lowercase letters, numbers, _ and . only.',
         error_messages={
             'unique': 'This username already exists.',
         },
@@ -24,7 +24,6 @@ class CustomUser(AbstractUser):
     email = models.EmailField(
         unique=True,
         verbose_name='email address',
-        help_text='Required. Unique. Must be a valid and unique email address.',
         error_messages={
             'unique': 'This email address already exists.',
         },
@@ -32,27 +31,22 @@ class CustomUser(AbstractUser):
     first_name = models.CharField(
         max_length=15,
         validators=[NameValidator('FirstName')],
-        help_text='Required. 15 characters or fewer. Letters only.',
     )
     last_name = models.CharField(
         max_length=15,
         validators=[NameValidator('LastName')],
-        help_text='Required. 15 characters or fewer. Letters only.',
     )
-    phone_number = models.CharField(
-        max_length=15,
+    phone_number = PhoneNumberField(
         unique=True,
-        help_text='Required. Unique. 15 characters or fewer.',
         error_messages={
             'unique': 'This phone number already exists.',
         },
     )
     image = models.ImageField(
-        upload_to=get_user_profile_image_path,
+        upload_to=get_user_profile_image_upload_path,
         blank=True,
         null=True,
         validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg', 'gif'])],
-        help_text='Allowed formats: png, jpg, jpeg, gif.',
     )
 
     REQUIRED_FIELDS = ['email', 'first_name', 'last_name', 'phone_number']
@@ -65,29 +59,33 @@ class CustomUser(AbstractUser):
     def __str__(self):
         return self.username
     
-    def get_edit_url(self):
-        return reverse('accounts:edit')
+    # ----- URLS -----
+
+    def get_absolute_url(self):
+        return reverse('accounts:user-detail', args=[self.username])
+    
+    def get_update_url(self):
+        return reverse('accounts:user-update')
     
     def get_delete_url(self):
-        return reverse('accounts:delete')
+        return reverse('accounts:user-delete')
     
-    def get_delete_profile_image_url(self):
-        return reverse('accounts:profile_image_delete')
-    
-    def get_profile_url(self):
-        return reverse('accounts:profile', args=[self.username])
+    def get_profile_image_delete_url(self):
+        return reverse('accounts:user-profile-image-delete')
     
     def get_follow_url(self):
-        return reverse('accounts:follow', args=[self.username])
+        return reverse('accounts:user-follow', args=[self.username])
     
     def get_unfollow_url(self):
-        return reverse('accounts:unfollow', args=[self.username])
+        return reverse('accounts:user-unfollow', args=[self.username])
     
-    def get_followers_url(self):
-        return reverse('accounts:followers', args=[self.username])
+    def get_follower_list_url(self):
+        return reverse('accounts:user-follower-list', args=[self.username])
     
-    def get_following_url(self):
-        return reverse('accounts:following', args=[self.username])
+    def get_following_list_url(self):
+        return reverse('accounts:user-following-list', args=[self.username])
+
+    # ----- COUNTS -----
 
     def get_followers_count(self):
         return self.followers.count()
@@ -95,10 +93,12 @@ class CustomUser(AbstractUser):
     def get_following_count(self):
         return self.following.count()
 
-    def get_followers(self):
+    # ----- LISTS -----
+
+    def get_follower_list(self):
         return CustomUser.objects.filter(following__to_user=self)
 
-    def get_following(self):
+    def get_following_list(self):
         return CustomUser.objects.filter(followers__from_user=self)
 
 

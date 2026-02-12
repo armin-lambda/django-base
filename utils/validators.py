@@ -1,14 +1,14 @@
-from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.utils.deconstruct import deconstructible
 
-from .base import INVALID_NAMES
+from .constants import INVALID_NAMES
 
 
 def apply_regex(value, regex, message=None):
     RegexValidator(
         regex=regex,
-        message=message or f"{value} is invalid.",
+        message=message or f"{value} is invalid",
     )(value)
 
 
@@ -16,33 +16,44 @@ def apply_regex(value, regex, message=None):
 class UsernameValidator:
     def __init__(self, invalid_names=INVALID_NAMES):
         self.invalid_names = invalid_names
-
+    
     def __call__(self, value):
+        error_msg = f"Enter a valid username"
+
         apply_regex(
             value,
-            r'^[a-z0-9_.]+$',
-            f"{value} is not allowed as a username."
+            r"^[a-z0-9_.]+$",
+            error_msg,
         )
 
-        for name in self.invalid_names:
-            if name in value:
-                raise ValidationError(f"{value} is not allowed as a username.")
+        value_lower = value.lower()
+        if any(name in value_lower for name in self.invalid_names):
+            raise ValidationError(error_msg)
         
         if value.isdigit():
-            raise ValidationError('Username cannot be only numbers.')
+            raise ValidationError(error_msg)
         
         if all(char in '._' for char in value):
-            raise ValidationError('Username cannot consist only of dots and underlines.')
+            raise ValidationError(error_msg)
 
 
 @deconstructible
 class NameValidator:
     def __init__(self, field_name='Name'):
         self.field_name = field_name
-    
+
     def __call__(self, value):
+        error_msg = f"Enter a valid {self.field_name}"
+
         apply_regex(
             value,
-            r'^[a-zA-Z]+$',
-            f"{self.field_name} must contain only letters."
+            r"^[a-zA-Z]+$",
+            error_msg,
         )
+
+
+@deconstructible
+class URLValidator:
+    def __call__(self, value):
+        if not value.startswith('https://'):
+            raise ValidationError('URL must start with https://')

@@ -1,7 +1,12 @@
+import os
+
 from django import forms
-from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.forms import AdminUserCreationForm, UserChangeForm
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
+from phonenumber_field.formfields import PhoneNumberField
 
 from utils.validators import UsernameValidator, NameValidator
 
@@ -24,165 +29,286 @@ class CustomUserChangeForm(UserChangeForm):
 class UserBaseForm(forms.Form):
     username = forms.CharField(
         max_length=30,
-        label='',
         validators=[UsernameValidator()],
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Username...',
+            'placeholder': 'Username',
         }),
     )
     email = forms.EmailField(
-        label='',
         widget=forms.EmailInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Email Address...',
+            'placeholder': 'Email Address',
         }),
     )
     first_name = forms.CharField(
         max_length=15,
-        label='',
         validators=[NameValidator('First Name')],
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'FirstName...',
+            'placeholder': 'First Name',
         }),
     )
     last_name = forms.CharField(
         max_length=15,
-        label='',
         validators=[NameValidator('Last Name')],
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'LastName...',
+            'placeholder': 'Last Name',
         }),
     )
-    phone_number = forms.CharField(
-        max_length=15,
-        label='',
+    phone_number = PhoneNumberField(
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Phone Number...',
+            'placeholder': 'Phone Number, +981234567890',
         }),
     )
 
 
-class RegisterForm(UserBaseForm):
+class UserCreateForm(UserBaseForm):
     password = forms.CharField(
-        max_length=128,
         min_length=4,
-        label='',
+        max_length=128,
         widget=forms.PasswordInput(attrs={
+            'placeholder': 'Password',
             'class': 'form-control',
-            'placeholder': 'Password...',
         }),
     )
     confirm_password = forms.CharField(
-        max_length=128,
         min_length=4,
-        label='',
+        max_length=128,
         widget=forms.PasswordInput(attrs={
+            'placeholder': 'Confirm Password',
             'class': 'form-control',
-            'placeholder': 'Confirm Password...',
         }),
     )
 
     def clean_username(self):
         username = self.cleaned_data.get('username')
 
-        if User.objects.filter(username=username).exists():
+        if username and User.objects.filter(username=username).exists():
             raise ValidationError('This username already exists.')
         return username
     
     def clean_email(self):
         email = self.cleaned_data.get('email')
 
-        if User.objects.filter(email=email).exists():
+        if email and User.objects.filter(email=email).exists():
             raise ValidationError('This email address already exists.')
         return email
     
     def clean_phone_number(self):
         phone_number = self.cleaned_data.get('phone_number')
 
-        if User.objects.filter(phone_number=phone_number).exists():
+        if phone_number and User.objects.filter(phone_number=phone_number).exists():
             raise ValidationError('This phone number already exists.')
         return phone_number
 
     def clean(self):
-        cd = self.cleaned_data
+        cd = super().clean()
         password = cd.get('password')
         confirm_password = cd.get('confirm_password')
 
-        if password != confirm_password:
+        if password and confirm_password and password != confirm_password:
             raise ValidationError("Passwords didn't match.")
+        return cd
+    
+    def save(self):
+        cd = self.cleaned_data
+        cd.pop('confirm_password')
+        return User.objects.create_user(**cd)
 
 
-class LoginForm(forms.Form):
+class UserLoginForm(forms.Form):
     username = forms.CharField(
         max_length=30,
-        label='',
-        validators=[UsernameValidator()],
         widget=forms.TextInput(attrs={
+            'placeholder': 'Username',
             'class': 'form-control',
-            'placeholder': 'Username...',
         }),
     )
     password = forms.CharField(
         max_length=128,
-        min_length=4,
-        label='',
         widget=forms.PasswordInput(attrs={
+            'placeholder': 'Password',
             'class': 'form-control',
-            'placeholder': 'Password...',
-        }),
-    )
-
-
-class AccountEditForm(UserBaseForm):
-    image = forms.ImageField(
-        label='',
-        required=False,
-        widget=forms.FileInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Profile Image...',
-        }),
-    )
-
-
-class AccountDeleteForm(forms.Form):
-    username = forms.CharField(
-        max_length=30,
-        label='',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Username...',
-        }),
-    )
-
-
-class ResetPasswordForm(forms.Form):
-    password = forms.CharField(
-        max_length=128,
-        min_length=4,
-        label='',
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'New Password...',
-        }),
-    )
-    confirm_password = forms.CharField(
-        max_length=128,
-        min_length=4,
-        label='',
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Confirm Password...',
         }),
     )
 
     def clean(self):
+        cd = super().clean()
+        username = cd.get('username')
+        password = cd.get('password')
+
+        if username and password:
+            user = authenticate(username=username, password=password)
+
+            if user is None:
+                raise ValidationError('Wrong username or password')
+            self.user = user
+        return cd
+
+
+class UserUpdateForm(UserBaseForm):
+    image = forms.ImageField(
+        required=False,
+        validators=[FileExtensionValidator(allowed_extensions=['png', 'jpg', 'jpeg', 'gif'])],
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+        }),
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+
+        if username and User.objects.filter(username=username).exclude(pk=self.user.pk).exists():
+            raise ValidationError('This username already exists.')
+        return username
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+
+        if email and User.objects.filter(email=email).exclude(pk=self.user.pk).exists():
+            raise ValidationError('This email address already exists.')
+        return email
+    
+    def clean_phone_number(self):
+        phone_number = self.cleaned_data.get('phone_number')
+
+        if phone_number and User.objects.filter(phone_number=phone_number).exclude(pk=self.user.pk).exists():
+            raise ValidationError('This phone number already exists.')
+        return phone_number
+    
+    def save(self):
         cd = self.cleaned_data
+
+        self.user.username = cd['username']
+        self.user.email = cd['email']
+        self.user.first_name = cd['first_name']
+        self.user.last_name = cd['last_name']
+        self.user.phone_number = cd['phone_number']
+        
+        if not cd['image'] is None:
+            if self.user.image and self.user.image.path:
+                os.remove(self.user.image.path)
+                self.user.image.delete()
+            self.user.image = cd['image']
+        
+        self.user.save()
+        return self.user
+
+
+class UserDeleteForm(forms.Form):
+    username = forms.CharField(
+        max_length=30,
+        validators=[UsernameValidator()],
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Username',
+            'class': 'form-control',
+        }),
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cd = super().clean()
+        username = cd.get('username')
+
+        if username and username != self.user.username:
+            raise ValidationError('Wrong username')
+        return cd
+    
+    def save(self):
+        if self.user.image and self.user.image.path:
+            os.remove(self.user.image.path)
+            self.user.image.delete()
+        self.user.delete()
+
+
+class UserPasswordResetForm(forms.Form):
+    username = forms.CharField(
+        max_length=30,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Username',
+            'class': 'form-control',
+        }),
+    )
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+
+        if username and not User.objects.filter(username=username).exists():
+            raise ValidationError('Wrong username')
+        return username
+    
+    def save(self):
+        cd = self.cleaned_data
+        user = get_object_or_404(User, username=cd['username'])
+        return user
+
+
+class UserPasswordVerifyCodeForm(forms.Form):
+    code = forms.IntegerField(
+        widget=forms.NumberInput(attrs={
+            'placeholder': 'Code',
+            'class': 'form-control',
+        }),
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.otp_code = kwargs.pop('otp_code', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_code(self):
+        code = self.cleaned_data.get('code')
+
+        if code and code != self.otp_code:
+            raise ValidationError('Wrong code')
+        return code
+
+
+class UserPasswordChangeForm(forms.Form):
+    password = forms.CharField(
+        min_length=4,
+        max_length=128,
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'New Password',
+            'class': 'form-control',
+        }),
+    )
+    confirm_password = forms.CharField(
+        min_length=4,
+        max_length=128, 
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Confirm Password',
+            'class': 'form-control',
+        }),
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.username = kwargs.pop('username', None)
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cd = super().clean()
         password = cd.get('password')
         confirm_password = cd.get('confirm_password')
 
         if password != confirm_password:
             raise ValidationError("Passwords didn't match.")
+        return cd
+    
+    def save(self):
+        cd = self.cleaned_data
+        cd.pop('confirm_password')
+        
+        user = get_object_or_404(User, username=self.username)
+        user.set_password(cd['password'])
+        user.save()
+        return  user

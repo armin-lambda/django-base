@@ -1,26 +1,26 @@
 {% extends 'base.html' %}
 
-{% block title %} Followers | {{ user.username }} {% endblock %}
+{% block title %} People {% endblock %}
 
 {% block content %}
 
 <div class="container mt-5">
     <form method="get" class="mb-5">
         <div class="input-group input-group-sm shadow-sm">
-            <input type="text" name="search" class="form-control rounded" placeholder="Search followers..."
+            <input type="text" name="search" class="form-control rounded" placeholder="Search people..."
                 value="{{ request.GET.search }}" required>
             <button class="btn btn-primary btn-sm ml-1 mr-1" type="submit">Search</button>
 
             {% if request.GET.search %}
-            <a href="{{ user.get_followers_url }}" class="btn btn-danger btn-sm">×</a>
+            <a href="{% url 'accounts:user-list' %}" class="btn btn-danger btn-sm">×</a>
             {% endif %}
         </div>
     </form>
 
-    {% with followers=page_obj %}
-    {% if followers %}
+    {% with users=page_obj %}
+    {% if users %}
     <div class="row g-4">
-        {% for user in followers %}
+        {% for user in users %}
         <div class="col-lg-6 mt-1 mb-1">
             <div class="card h-100 shadow-sm border-0">
                 <div class="card-header bg-white border-0">
@@ -29,7 +29,7 @@
                 </div>
 
                 <div class="card-footer bg-white border-0">
-                    <a href="{{ user.get_profile_url }}" class="btn btn-outline-primary w-100">View Profile →</a>
+                    <a href="{{ user.get_absolute_url }}" class="btn btn-outline-primary w-100">View Profile →</a>
                 </div>
             </div>
         </div>
@@ -42,7 +42,7 @@
 
     {% else %}
     <div class="text-center py-5">
-        <h5 class="text-muted">No followers found 😕</h5>
+        <h5 class="text-muted">No people found 😕</h5>
     </div>
     {% endif %}
     {% endwith %}

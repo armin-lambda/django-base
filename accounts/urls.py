@@ -5,24 +5,24 @@ from . import views
 
 app_name = 'accounts'
 urlpatterns = [
-    path('register/', views.RegisterView.as_view(), name='register'),
-    path('login/', views.LoginView.as_view(), name='login'),
-    path('logout/', views.LogoutView.as_view(), name='logout'),
+    path('register/', views.UserCreateView.as_view(), name='user-create'),
+    path('login/', views.UserLoginView.as_view(), name='user-login'),
+    path('logout/', views.UserLogoutView.as_view(), name='user-logout'),
 
-    path('send-otp-code/', views.SendOTPCodeView.as_view(), name='send_otp_code'),
-    path('verify-otp-code/', views.VerifyOTPCodeView.as_view(), name='verify_otp_code'),
-    path('reset-password/', views.ResetPasswordView.as_view(), name='reset_password'),
+    path('reset-password/', views.UserPasswordResetView.as_view(), name='user-password-reset'),
+    path('verify-code/', views.UserPasswordVerifyCodeView.as_view(), name='user-password-verify-code'),
+    path('change-password/', views.UserPasswordChangeView.as_view(), name='user-password-change'),
 
-    path('edit/', views.AccountEditView.as_view(), name='edit'),
-    path('delete/', views.AccountDeleteView.as_view(), name='delete'),
-    path('delete-profile-image/', views.ProfileImageDeleteView.as_view(), name='profile_image_delete'),
+    path('edit/', views.UserUpdateView.as_view(), name='user-update'),
+    path('delete/', views.UserDeleteView.as_view(), name='user-delete'),
+    path('delete-profile-image/', views.UserProfileImageDeleteView.as_view(), name='user-profile-image-delete'),
     
-    path('', views.PeopleView.as_view(), name='people'),
+    path('', views.UserListView.as_view(), name='user-list'),
     
-    path('<username>/', views.ProfileView.as_view(), name='profile'),
-    path('<username>/follow/', views.FollowView.as_view(), name='follow'),
-    path('<username>/unfollow/', views.UnfollowView.as_view(), name='unfollow'),
+    path('<username>/', views.UserDetailView.as_view(), name='user-detail'),
+    path('<username>/follow/', views.UserFollowView.as_view(), name='user-follow'),
+    path('<username>/unfollow/', views.UserUnfollowView.as_view(), name='user-unfollow'),
     
-    path('<username>/followers/', views.FollowersView.as_view(), name='followers'),
-    path('<username>/following/', views.FollowingView.as_view(), name='following'),
+    path('<username>/followers/', views.UserFollowerListView.as_view(), name='user-follower-list'),
+    path('<username>/following/', views.UserFollowingListView.as_view(), name='user-following-list'),
 ]
